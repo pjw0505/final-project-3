@@ -23,13 +23,14 @@ def ask_ai_agent(prompt):
     api_url = f"https://text.pollinations.ai/{encoded_prompt}?seed={seed}&model=openai" 
 
     try:
-        # 타임아웃 30초 설정
-        response = requests.get(api_url, timeout=30)
+        # 💥 타임아웃을 30초에서 90초로 연장하여 안정성 확보 💥
+        response = requests.get(api_url, timeout=90) 
         if response.status_code == 200:
             return response.text
         else:
             return f"Error: Text API status {response.status_code}"
     except Exception as e:
+        # Time Out 오류 시 메시지 상세화
         return f"Error: Text API timed out or failed with {e}"
 
 # -------------------------------------------------------
@@ -42,14 +43,12 @@ def generate_ai_image(prompt: str) -> str:
     """
     encoded_prompt = urllib.parse.quote(prompt)
     
-    # Pollinations 이미지 API 엔드포인트 사용 (SDXL 모델 사용 가정)
+    # Pollinations 이미지 API 엔드포인트 사용
     api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}"
     
-    # 이미지 생성은 시간이 오래 걸리므로 타임아웃을 120초(2분)로 설정
+    # 이미지 생성은 시간이 오래 걸리므로 타임아웃을 180초(3분)로 설정
     try:
-        # GET 요청을 보내고, 리디렉션된 최종 URL (이미지 URL)을 받습니다.
-        # allow_redirects=True로 설정하여 최종 이미지 URL을 얻습니다.
-        response = requests.get(api_url, allow_redirects=True, timeout=120)
+        response = requests.get(api_url, allow_redirects=True, timeout=180) # 💥 180초로 연장 💥
         
         # Pollinations는 성공 시 최종 이미지 URL로 리디렉션됩니다.
         if response.status_code == 200 and response.url != api_url:
@@ -156,7 +155,7 @@ if st.button("🔎 분석 및 시각화 실행"):
                     "image_prompt": "Your detailed English description for the image generator here." 
                 }}
                 
-                Analyze based on the provided text. Output JSON only.
+                Analyze based on the provided text. Output JSON only. DO NOT ADD ANY EXPLANATORY TEXT BEFORE OR AFTER THE JSON. # 💥 지시 강화 💥
                 """
                 
                 ai_response_text = ask_ai_agent(system_prompt)
@@ -179,18 +178,24 @@ if st.button("🔎 분석 및 시각화 실행"):
                             st.subheader("📊 활동 연표")
                             timeline = result_data.get("timeline_data", [])
                             if timeline:
-                                st.dataframe(timeline, use_container_width=True)
+                                # pandas를 사용하면 더 깔끔하게 표시됨
+                                try:
+                                    import pandas as pd
+                                    df = pd.DataFrame(timeline)
+                                    st.dataframe(df, use_container_width=True)
+                                except ImportError:
+                                    st.json(timeline) # pandas가 없으면 JSON으로 출력
                             else:
                                 st.info("연표 데이터를 추출할 수 없습니다.")
                         
-                        # 3. 이미지 생성 및 출력 (추가된 기능)
+                        # 3. 이미지 생성 및 출력
                         image_prompt = result_data.get("image_prompt", "")
 
                         if image_prompt:
                             st.subheader("🖼️ 복원 이미지 시뮬레이션")
                             st.info(f"AI가 생성한 이미지 묘사 (Prompt): **{image_prompt}**")
                             
-                            with st.spinner("AI 이미지 생성 중... (최대 2분 소요될 수 있습니다)"):
+                            with st.spinner("AI 이미지 생성 중... (최대 3분 소요될 수 있습니다)"):
                                 image_url = generate_ai_image(image_prompt)
                             
                             if image_url and not image_url.startswith("Error"):
@@ -204,7 +209,7 @@ if st.button("🔎 분석 및 시각화 실행"):
                         st.text(ai_response_text)
                         
                 except json.JSONDecodeError:
-                    st.error("AI 응답을 처리하는 중 오류가 발생했습니다.")
+                    st.error("AI 응답을 처리하는 중 오류가 발생했습니다. (JSON 디코딩 실패)")
                     st.text(ai_response_text)
 
         else:
