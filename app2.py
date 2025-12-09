@@ -1,5 +1,5 @@
 # =======================================================
-# app2.py: 고전 예술 기록 및 멸실유산 발굴 에이전트 (무료 API 통합 버전)
+# app2.py: 고전 예술 기록 및 멸실유산 발굴 에이전트 (타임아웃 연장 버전)
 # =======================================================
 
 import streamlit as st
@@ -23,14 +23,13 @@ def ask_ai_agent(prompt):
     api_url = f"https://text.pollinations.ai/{encoded_prompt}?seed={seed}&model=openai" 
 
     try:
-        # 💥 타임아웃을 30초에서 90초로 연장하여 안정성 확보 💥
-        response = requests.get(api_url, timeout=90) 
+        # 💥 타임아웃 90초에서 120초로 연장 💥
+        response = requests.get(api_url, timeout=120) 
         if response.status_code == 200:
             return response.text
         else:
             return f"Error: Text API status {response.status_code}"
     except Exception as e:
-        # Time Out 오류 시 메시지 상세화
         return f"Error: Text API timed out or failed with {e}"
 
 # -------------------------------------------------------
@@ -46,9 +45,10 @@ def generate_ai_image(prompt: str) -> str:
     # Pollinations 이미지 API 엔드포인트 사용
     api_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}"
     
-    # 이미지 생성은 시간이 오래 걸리므로 타임아웃을 180초(3분)로 설정
+    # 이미지 생성은 시간이 오래 걸리므로 타임아웃을 300초(5분)로 연장
     try:
-        response = requests.get(api_url, allow_redirects=True, timeout=180) # 💥 180초로 연장 💥
+        # GET 요청을 보내고, 리디렉션된 최종 URL (이미지 URL)을 받습니다.
+        response = requests.get(api_url, allow_redirects=True, timeout=300) # 💥 180초에서 300초로 연장 💥
         
         # Pollinations는 성공 시 최종 이미지 URL로 리디렉션됩니다.
         if response.status_code == 200 and response.url != api_url:
@@ -155,7 +155,7 @@ if st.button("🔎 분석 및 시각화 실행"):
                     "image_prompt": "Your detailed English description for the image generator here." 
                 }}
                 
-                Analyze based on the provided text. Output JSON only. DO NOT ADD ANY EXPLANATORY TEXT BEFORE OR AFTER THE JSON. # 💥 지시 강화 💥
+                Analyze based on the provided text. Output JSON only. DO NOT ADD ANY EXPLANATORY TEXT BEFORE OR AFTER THE JSON.
                 """
                 
                 ai_response_text = ask_ai_agent(system_prompt)
@@ -195,7 +195,7 @@ if st.button("🔎 분석 및 시각화 실행"):
                             st.subheader("🖼️ 복원 이미지 시뮬레이션")
                             st.info(f"AI가 생성한 이미지 묘사 (Prompt): **{image_prompt}**")
                             
-                            with st.spinner("AI 이미지 생성 중... (최대 3분 소요될 수 있습니다)"):
+                            with st.spinner("AI 이미지 생성 중... (최대 5분 소요될 수 있습니다)"):
                                 image_url = generate_ai_image(image_prompt)
                             
                             if image_url and not image_url.startswith("Error"):
